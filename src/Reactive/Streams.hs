@@ -30,7 +30,7 @@ module Reactive.Streams (
 
   -- * Transforming
                             , bufferCount
-                            , concat
+                            , Reactive.Streams.concat
                             , expand
                             , expandM
                             , groupBy
@@ -191,8 +191,8 @@ bufferCount = buffered
 -- bufferWhen :: (x -> Bool) -> Source x -> Process a [a]
 
 
-concatMap :: Process a b -> Process a b -> Process a b
-concatMap = (<>)
+concat :: Process a b -> Process a b -> Process a b
+concat = (<>)
 
 expand :: (a -> a) -> a -> Source a
 expand = iterated
@@ -230,7 +230,7 @@ partition
   -> (MachineT m k b, MachineT m k b)
 partition pred m = (m ~> filtered pred, m ~> filtered (not . pred))
 
-reduce :: (a -> b -> a) -> a -> Process b a
+reduce :: (b -> a -> b) -> b -> Process a b
 reduce = fold
 
 reduce1 :: (a -> a -> a) -> Process a a
@@ -243,7 +243,7 @@ reduce1 = fold1
 tap :: Monad m => (a -> m ()) -> ProcessT m a a
 tap f = map' (\a -> f a $> a)
 
-repeat :: Int -> Source b -> Source b
+repeat :: Int -> Process a b -> Process a b
 repeat times m = mconcat (replicate times m)
 
 -- delay :: MonadIO m => Int -> ProcessT m a a
