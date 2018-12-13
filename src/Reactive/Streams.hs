@@ -1,8 +1,5 @@
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE Arrows #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE TupleSections #-}
-module Reactive.Combinators (
+module Reactive.Streams (
   -- * Creation
   create
                             , empty
@@ -18,17 +15,17 @@ module Reactive.Combinators (
   -- * Filtering
                             , debounceTime
                             , distinctUntilChanged
-                            , Reactive.Combinators.filter
-                            , Reactive.Combinators.first
+                            , Reactive.Streams.filter
+                            , Reactive.Streams.first
                             , firstOf
                             , ignoreElements
-                            , Reactive.Combinators.last
+                            , Reactive.Streams.last
                             , sampleM
                             , skip
                             , skipWhile
                             , skipUntil
-                            , Reactive.Combinators.take
-                            , Reactive.Combinators.takeWhile
+                            , Reactive.Streams.take
+                            , Reactive.Streams.takeWhile
                             , takeUntil
 
   -- * Transforming
@@ -47,7 +44,7 @@ module Reactive.Combinators (
                             , scan1
   -- * Utility
                             , tap
-                            , Reactive.Combinators.repeat
+                            , Reactive.Streams.repeat
   ) where
 
 import Prelude hiding (map)
@@ -67,7 +64,7 @@ import qualified Data.Map as M
 type Handler m a = a -> m ()
 create :: MonadIO m => ((a -> IO ()) -> IO ()) -> SourceT m a
 create f = MachineT $ do
-  queue <- liftIO . atomically $ newTBQueue (fromIntegral 100)
+  queue <- liftIO . atomically $ newTBQueue 100
   let handler = atomically . writeTBQueue queue
   asyncID <- liftIO $ async (f handler)
   continue queue
