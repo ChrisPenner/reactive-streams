@@ -27,6 +27,8 @@ dependencies:
 - stm
 - concurrent-machines >= 0.3 && < 0.4
 - async
+- mtl
+- containers
 
 library:
   source-dirs: src

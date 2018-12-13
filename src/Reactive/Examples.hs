@@ -12,5 +12,8 @@ printOnDelay = create (counter 1) ~> autoM print
     handle i
     counter (i + 1) handle
 
+debouncer :: SourceT IO ()
+debouncer = interval 1 ~> debounceTime 1000 ~> autoM print
+
 -- mergeMap :: (a -> IO b) -> ProcessT IO a b
 -- mergeMap _ = undefined
