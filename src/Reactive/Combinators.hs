@@ -2,42 +2,55 @@
 {-# LANGUAGE Arrows #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TupleSections #-}
-module Reactive.Combinators where
+module Reactive.Combinators (
+  -- * Creation
+  create
+  ) where
 
-import Reactive.Types
+import Prelude hiding (map)
+-- import Reactive.Types
 import Control.Arrow
-import qualified Data.Machine as M
+import Data.Machine as M
+import Control.Concurrent.Async
+import Control.Concurrent.STM
+import Control.Monad.IO.Class
 
-continually :: (Monad m) => m a -> SourceT m a
-continually ma = StreamT . M.MachineT $ (yield <$> ma)
-  where
-    yield a = M.Yield a (toProcess $ continually ma)
+------------------------------------Creation------------------------------------
 
-mapME :: (Monad m) => (a -> m b) -> StreamT m a b
-mapME f = StreamT $ M.autoT (Kleisli f)
+type Handler m a = a -> m ()
+create :: MonadIO m => ((a -> IO ()) -> IO ()) -> SourceT m a
+create f = MachineT $ do
+  queue <- liftIO . atomically $ newTBQueue (fromIntegral 100)
+  let handler = atomically . writeTBQueue queue
+  asyncID <- liftIO $ async (f handler)
+  continue queue
+ where
+  continue queue = do
+    o <- liftIO . atomically $ readTBQueue queue
+    return $ Yield o (MachineT $ continue queue)
 
-runStream :: Monad m => StreamT m a b -> m [b]
-runStream (StreamT m) = M.runT m
+------------------------------------Other---------------------------------------
+-- continually :: (Monad m) => m a -> SourceT m a
+-- continually ma = StreamT . M.MachineT $ (yield <$> ma)
+--   where yield a = M.Yield a (toProcess $ continually ma)
 
-readLineE :: SourceT IO String
-readLineE = continually getLine
+-- map :: (Monad m) => (a -> m b) -> StreamT m a b
+-- map f = StreamT $ M.autoT (Kleisli f)
 
-sampleBehaviour :: (Monad m) => m b -> StreamT m a b
-sampleBehaviour m = mapME (const m)
+-- runStream :: Monad m => StreamT m a b -> m [b]
+-- runStream (StreamT m) = M.runT m
 
-alongside :: Monad m => (a -> m b) -> StreamT m a (a, b)
-alongside f = mapME (\a -> (a, ) <$> f a)
+-- sampleBehaviour :: (Monad m) => m b -> StreamT m a b
+-- sampleBehaviour m = map (const m)
 
-excite :: (Monad m) => StreamT m String String
-excite = mapME (pure . (++ "!!"))
+-- alongside :: Monad m => (a -> m b) -> StreamT m a (a, b)
+-- alongside f = map (\a -> (a, ) <$> f a)
 
-printE :: StreamT IO String ()
-printE = mapME print
+-- excite :: (Monad m) => StreamT m String String
+-- excite = map (pure . (++ "!!"))
 
-example :: StreamT IO String ()
-example = proc x -> do
-  out <- excite -< x
-  printE -< out
+-- source :: (Monad m, Foldable f) => f b -> StreamT m a b
+-- source = StreamT . M.source
 
-source :: (Monad m, Foldable f) => f b -> StreamT m a b
-source = StreamT . M.source
+-- -- concat :: (Monad m) => StreamT m a b -> StreamT m a b -> StreamT m a b
+-- -- concat m n = 

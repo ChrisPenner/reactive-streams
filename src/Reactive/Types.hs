@@ -43,11 +43,7 @@ instance (Monad m) => Arrow (StreamT m) where
       next d m = M.MachineT $ do
         (output, await, _) <- yieldUntilAwait m
         M.runMachineT $ yieldFirst ((,d) <$> output) (pairProcess . M.encased $ M.Await await M.Refl M.stopped)
-
-
-yieldFirst :: (Monad m) => [c] -> M.ProcessT m b c -> M.ProcessT m b c
-yieldFirst []       p = p
-yieldFirst (x : xs) p = M.encased $ M.Yield x (yieldFirst xs p)
+      yieldFirst l p = p M.~> M.prepended l
 
 yieldUntilAwait
   :: (Monad m)
