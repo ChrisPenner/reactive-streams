@@ -1,0 +1,42 @@
+name:                reactive-streams
+version:             0.1.0.0
+github:              "ChrisPenner/reactive-streams"
+license:             BSD3
+author:              "Chris Penner"
+maintainer:          "christopher.penner@gmail.com"
+copyright:           "Chris Penner"
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Other
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on GitHub at <https://github.com/ChrisPenner/reactive-streams#readme>
+
+dependencies:
+- base >= 4.7 && < 5
+- machines
+- profunctors
+
+library:
+  source-dirs: src
+
+tests:
+  reactive-streams-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - reactive-streams
+    - hspec
+    - hedgehog
+    - QuickCheck
