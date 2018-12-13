@@ -1,41 +1,57 @@
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE Arrows #-}
-module TypesSpec where
+module StreamsSpec where
 
-import Data.Functor.Identity
+import Data.Machine
+import Data.Foldable
 import Test.Hspec
-import Data.Char
-import Reactive.Types
-import Reactive.Combinators
-import Control.Category
-import Control.Arrow
+import Reactive.Streams
 
-testProcess :: StreamT Identity a b -> [a] -> [b]
-testProcess p src = runIdentity $ runStream (source src >>> p)
+testProcess :: Process a b -> [a] -> [b]
+testProcess p src = toList $ (source src ~> p)
+
+testProcessIO :: ProcessT IO a b -> [a] -> IO [b]
+testProcessIO p src = runT $ (source src ~> p)
+
+
 
 spec :: Spec
 spec = do
-  describe "Arrow" $ do
-    it "should lift functions with arr" $ do
-      testProcess (arr toUpper) "ab" `shouldBe` "AB"
-    it "should map first arg using 'first'" $ do
-      testProcess (first $ arr toUpper) [('a', 1), ('b', 2)]
-        `shouldBe` [('A', 1), ('B', 2)]
-    it "should pair second of tuple with original input until an await" $ do
-      testProcess (first $ source [1, 2, 3]) [(99, 'a')]
-        `shouldBe` [(1, 'a'), (2, 'a'), (3, 'a')]
-    it "works with arrow notation" $ do
-      let stream = proc x -> do
-                    succX <- (arr (+1)) -< x
-                    multX <- (arr (*100)) -< x
-                    returnA -< (succX, multX)
-      testProcess stream [1, 2, 3]
-        `shouldBe` [(2, 100), (3, 200), (4, 300)]
-      -- let stream2 = proc x -> do
-      --               succX <- (arr (+1)) -< x
-      --               multX <- (arr (*100)) -< x
-      --               letter <- (source @Identity "abcd" ) -< x
-      --               returnA -< (succX, multX, letter)
-      -- testProcess stream2 [1, 2, 3]
-      --   `shouldBe` [(2, 100, 'a'), (3, 200, 'b'), (4, 300, 'c')]
+  describe "create" $ do
+    it "should yield all handled values then stop" $ do
+      result <- testProcessIO
+        (create (\handle -> handle 1 >> handle 2 >> handle 3))
+        []
+      result `shouldBe` [1, 2, 3]
+
+  describe "empty" $ do
+    it "should stop immediately, ignoring input" $ do
+      testProcess empty [1, 2, 3] `shouldBe` ([] :: [()])
+
+  describe "from" $ do
+    it "should yield values from foldable then stop" $ do
+      testProcess (from [1, 2, 3]) [4, 5, 6] `shouldBe` [1, 2, 3]
+
+  -- describe "interval" $ do
+  --   it "should yield values in due time" $ do
+  --     testProcessIO (interval 100) [4, 5, 6] `shouldBe` [1]
+
+  describe "of'" $ do
+    it "should a single value then stop" $ do
+      testProcess (of' 1) [4, 5, 6] `shouldBe` [1]
+
+  describe "range" $ do
+    it "should yield values in range then stop" $ do
+      testProcess (range 'a' 'c') "xyx" `shouldBe` "abc"
+
+  describe "range" $ do
+    it "should yield values in range then stop" $ do
+      testProcess (range 'a' 'c') "xyx" `shouldBe` "abc"
+
+  -- describe "timer" $ do
+  --   it "should trigger repeatedly after given time" $ do
+  --     testProcessIO (interval 100) [4, 5, 6] `shouldBe` [1]
+
+  describe "catch" $ do
+    it "should catch errors and run new machine" $ do
+      testProcess (range 'a' 'c') "xyx" `shouldBe` "abc"

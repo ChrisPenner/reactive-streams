@@ -64,14 +64,18 @@ import qualified Data.Map as M
 type Handler m a = a -> m ()
 create :: MonadIO m => ((a -> IO ()) -> IO ()) -> SourceT m a
 create f = MachineT $ do
-  queue <- liftIO . atomically $ newTBQueue 100
+  queue    <- liftIO . atomically $ newTBQueue 100
+  finished <- liftIO newEmptyTMVarIO
   let handler = atomically . writeTBQueue queue
-  asyncID <- liftIO $ async (f handler)
-  continue queue
+  asyncID <- liftIO $ async (f handler >> atomically (putTMVar finished ()))
+  continue queue finished
  where
-  continue queue = do
-    o <- liftIO . atomically $ readTBQueue queue
-    return $ Yield o (MachineT $ continue queue)
+  continue queue finished = do
+    maybeOutput <- liftIO . atomically $ do
+      (Just <$> readTBQueue queue) `orElse` (takeTMVar finished $> Nothing)
+    case maybeOutput of
+      Nothing -> return Stop
+      Just o  -> return $ Yield o (MachineT $ continue queue finished)
 
 empty :: Machine k b
 empty = stopped
